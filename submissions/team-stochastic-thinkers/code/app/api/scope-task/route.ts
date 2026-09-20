@@ -20,6 +20,7 @@ import { createDraft, getJob, openJob, recordMatches, registerJobMirror, type Ma
 import { findMatchingWorkers } from "@/lib/matching";
 import { ScopeError, scopeTask } from "@/lib/scope";
 import { sendSms, tplScopedJob } from "@/lib/sms";
+import { alertScoped, deliverAlertCall } from "@/lib/voice";
 import { getStore } from "@/lib/store";
 import { SKILL_LABELS, TOOL_LABELS, isService } from "@/lib/taxonomy";
 import { isLatLng, json, jsonError, readJson, safe, text } from "@/lib/validate";
@@ -99,6 +100,7 @@ export const POST = safe(async (req: Request) => {
     for (const w of match.workers) {
       void sendSms(w.phone, tplScopedJob({ category: SKILL_LABELS[scope.category], title: scope.parsedTitle, minutes: scope.estimatedTimeMinutes,
         tools: scope.requiredTools.map((t) => TOOL_LABELS[t]), code, distanceKm: w.distanceKm }));
+      void deliverAlertCall(w.phone, alertScoped({ category: scope.category, distanceKm: w.distanceKm }), w.language ?? undefined); // matched workers are all skill matches
       records.push({ workerId: w.id, name: w.name, distanceKm: w.distanceKm, toolsMatched: w.toolsMatched, channel: w.online ? "sse" : "sms", notifiedAt: now });
     }
     await recordMatches(job._id, records, match.toolMatch);

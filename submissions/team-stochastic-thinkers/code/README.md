@@ -35,6 +35,8 @@ away has free hours and no simple way to find local work on his own terms.
 - Job requests for your services arrive live with a sound, with the customer's details and a map.
 - **No app open? No missed work.** Matched providers who are offline get an SMS and claim the job with one reply:
   `ACCEPT 1234`. The app reacts exactly as if they had tapped Accept.
+- **The phone rings, not just the inbox.** When a help request matches their skill, providers also get a Twilio voice
+  call that reads the alert aloud, so the job is seen while the ringing is still stopped — not an hour later.
 - One job at a time: while you're on a job your screen shows only that customer, with navigation; other requests wait.
 
 **Admins** (`/ops`) get live requests on a map, **ID verification** (approve or reject with an SMS to the person),
@@ -71,6 +73,7 @@ The same app on a laptop — one column becomes two, the trade grid goes three-u
 | Database | MongoDB (users, jobs, locations, audit log, GridFS for ID proofs and job photos) |
 | Local AI | Ollama — `llama3.1`, falling back to `qwen2.5:3b`. Nothing leaves the machine |
 | SMS | Twilio (Verify for sign-in codes, Messaging for job alerts and one-reply acceptance) |
+| Voice | Twilio Calls — a spoken alert rings skill-matched providers, on top of the SMS |
 
 No paid APIs, no cloud AI, no third-party map SDK.
 
@@ -116,10 +119,11 @@ Everything works out of the box **except real SMS**. The important settings:
 |---|---|
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017` (blank falls back to a local JSON file) |
 | `OLLAMA_SCOPE_MODEL` | `llama3.1`; falls back to `OLLAMA_MODEL` (`qwen2.5:3b`) automatically |
-| `RESQ_SHOW_OTP_ON_SCREEN` | `1` shows sign-in codes on screen so you can demo without Twilio |
+| `RESQ_SHOW_OTP_ON_SCREEN` | `1` shows sign-in codes on screen so you can demo without Twilio (also lets any number sign in during a demo, even unverified trial numbers) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` | Twilio auth (API key recommended) |
 | `TWILIO_VERIFY_SERVICE_SID` | Sends real sign-in codes (`VA…`) |
-| `TWILIO_FROM` | A Twilio number; needed for job alerts and `ACCEPT` replies |
+| `TWILIO_FROM` | A Twilio number; needed for job alerts, `ACCEPT` replies and voice alert calls |
+| `RESQ_DEMO_PHONE` | Optional: seed an extra helper at this number (e.g. `+14254843703`) so matching help requests actually **call** it |
 | `OPS_USER`, `OPS_PASSWORD` | Admin login (default `coordinator` / `resq-ops`) |
 
 ### 5. Run
@@ -172,7 +176,7 @@ lib/
   jobs.ts         MongoDB `jobs`: GeoJSON, 4-digit codes, status mirrored from the engine
   waves.ts        the request lifecycle: one accept wins, one job at a time
   store/          in-memory engine (atomic accept) + MongoDB persistence
-  sms.ts, otp.ts, twilio.ts, files.ts, feed.ts, views.ts, events.ts, sse.ts
+  sms.ts, voice.ts, otp.ts, twilio.ts, files.ts, feed.ts, views.ts, events.ts, sse.ts
 components/       UI: TaskScopeModal, JobBrief, ServiceRequestView, ActiveJob, LiveMap, …
 docs/             WORKFLOW.md (how it works), UPGRADE.md, CONTRACTS.md
 ```
@@ -186,7 +190,8 @@ memory (single process, by design) and mirrored to MongoDB on every change.
 - **In-app payment is a placeholder.** The flow ends at "Pay in app · coming soon".
 - **Live request state is in memory**, so a server restart clears in-flight requests. Accounts, jobs, photos and
   logs survive in MongoDB.
-- **Twilio trial accounts** can only text verified numbers; the app falls back to on-screen codes in demo mode.
+- **Twilio trial accounts** can only text and call verified numbers; the app falls back to simulated SMS/calls in
+  demo mode.
 - **ID verification is manual** and tiers are self-declared, pending real document checks.
 - Single process by design: fine for a venue or a ward, not yet for a city.
 

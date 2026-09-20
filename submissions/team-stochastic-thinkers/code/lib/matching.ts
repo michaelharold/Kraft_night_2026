@@ -22,12 +22,12 @@ import { haversineKm } from "./dispatch";
 import { isAppOnline } from "./presence";
 import { rateFor } from "./policy";
 import { busyHelperIds } from "./waves";
-import type { Helper, LatLng, RateRange, TaskScope, Tool } from "./types";
+import type { Helper, LatLng, LanguageCode, RateRange, TaskScope, Tool } from "./types";
 
 export const MATCH_RADIUS_M = 10_000;
 export type MatchedWorker = {
   id: string; name: string; phone: string; distanceKm: number; toolsMatched: Tool[]; toolsMissing: Tool[];
-  online: boolean; rate: RateRange | null;
+  online: boolean; rate: RateRange | null; language: LanguageCode | null;
 };
 export type MatchResult = {
   workers: MatchedWorker[];
@@ -66,7 +66,7 @@ export async function findMatchingWorkers(i: { location: LatLng; scope: TaskScop
       const w: MatchedWorker = {
         id: live.id, name: live.name, phone: live.phone, distanceKm: +haversineKm(i.location, live.location).toFixed(2),
         toolsMatched: tools.filter((t) => have.includes(t)), toolsMissing: tools.filter((t) => !have.includes(t)),
-        online: isAppOnline(live.id), rate: rateFor(live, i.scope.category),
+        online: isAppOnline(live.id), rate: rateFor(live, i.scope.category), language: live.language ?? null,
       };
       (live.idProof?.status === "verified" ? workers : unverified).push(w);
     }

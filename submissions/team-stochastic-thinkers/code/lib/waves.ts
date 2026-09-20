@@ -10,6 +10,7 @@ import { NO_HAZARD } from "./hazards";
 import { getStore } from "./store";
 import { MAX_WAVES, TICK_GRACE_MS, WAVE_RADII_KM, haversineKm, selectWave, waveWindowMs } from "./dispatch";
 import { formatDistance, mapsUrl, sendSms, tplJobTaken, tplPing, tplRequesterEscalated, tplRequesterMatched, tplRequestClosed, tplServiceRequest } from "./sms";
+import { alertPing, alertService, deliverAlertCall } from "./voice";
 import { triage } from "./triage";
 import { inferRole } from "./role";
 import { releaseEscrowLocked, withHelperLock, type EscrowRelease } from "./escrow";
@@ -142,6 +143,9 @@ async function runWaveLocked(id: string, first: number): Promise<HelpRequest | n
           : !mySkill && myEquipment ? tplPingEquipment({ distanceKm: p.distanceKm, equipment: myEquipment, type: t.type, urgency: t.urgency })
           : tplPing({ distanceKm: p.distanceKm, skill: mySkill ?? t.skills[0], type: t.type, urgency: t.urgency });
         void sendSms(p.helper.phone, body);
+        // The text is cheap and everyone gets it; the call costs real money, so it rings only the people this
+        // request is genuinely theirs for — a skill or a piece of equipment they own, never a bystander fill.
+        if (mySkill || myEquipment) void deliverAlertCall(p.helper.phone, alertPing({ distanceKm: p.distanceKm, skill: mySkill ?? null }), p.helper.language);
       }
     }
     return request;
@@ -230,8 +234,10 @@ export async function createServiceRequest(input: ServiceRequestInput): Promise<
   });
   emit("request:updated", { request });
   if (input.location && input.notify !== false) {
-    for (const { helper, km } of await broadcastTargets({ service: input.service, location: input.location, excludeHelperId: input.account.id }))
+    for (const { helper, km } of await broadcastTargets({ service: input.service, location: input.location, excludeHelperId: input.account.id })) {
       void sendSms(helper.phone, tplServiceRequest({ service: input.service, distanceKm: km }));
+      void deliverAlertCall(helper.phone, alertService({ service: input.service, distanceKm: km }), helper.language); // every broadcast target is a skill match
+    }
   }
   return request;
 }

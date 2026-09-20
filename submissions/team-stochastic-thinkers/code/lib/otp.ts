@@ -3,6 +3,8 @@
  *   1. TWILIO_VERIFY_SERVICE_SID set → Twilio Verify sends and checks the code (best delivery to Indian numbers).
  *   2. Otherwise → Sahaya generates the code and texts it with Twilio Messaging (TWILIO_FROM).
  *   3. No Twilio at all → refused with "sms_not_configured", unless RESQ_SHOW_OTP_ON_SCREEN=1 (offline demo only).
+ * RESQ_SHOW_OTP_ON_SCREEN=1 also shows the code on screen whenever a real delivery would fail (unverified trial
+ * numbers), so a demo can sign anyone in without waiting for SMS.
  */
 import { randomInt } from "node:crypto";
 import { getStore } from "./store";
@@ -44,6 +46,15 @@ export async function sendCode(phone: string): Promise<
   if (smsConfigured()) {
     await getStore().saveOtp({ phone, code, expiresAt: new Date(Date.now() + OTP_TTL_SEC * 1000).toISOString(), attempts: 0 });
     const r = await sendSms(phone, tplOtp(code));
+    // Demo mode shows the code on screen even when SMS is configured, so any number can sign in (useful
+    // for unverified trial numbers). The real SMS still goes out when it can.
+    if (showOtpOnScreen()) {
+      localOtp.add(phone);
+      console.log(`[otp] (on-screen demo mode) phone=${phone} code=${code}`);
+      return r.ok
+        ? { ok: true, channel: "sms", devCode: code, devReason: "demo" }
+        : { ok: true, channel: "screen", devCode: code, devReason: "sms_failed" };
+    }
     return r.ok ? { ok: true, channel: "sms" } : { ok: false, error: "sms_failed", detail: r.error };
   }
   if (showOtpOnScreen()) return localCode(phone);

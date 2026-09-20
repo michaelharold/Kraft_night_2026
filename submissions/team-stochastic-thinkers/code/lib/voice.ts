@@ -26,11 +26,12 @@
  */
 import { randomUUID } from "node:crypto";
 import { emit } from "./events";
-import { DEFAULT_LANGUAGE, MAX_SPEECH_SECONDS, languageOf, type LanguageCode } from "./languages";
+import { DEFAULT_LANGUAGE, FALLBACK_LANGUAGE, MAX_SPEECH_SECONDS, languageOf, type LanguageCode } from "./languages";
 import { getStore } from "./store";
 import { translate } from "./translate";
 import { getTwilio, twilioAuthConfigured } from "./twilio";
-import type { HelpRequest, VoiceMessage } from "./types";
+import { SKILL_LABELS } from "./taxonomy";
+import type { HelpRequest, Skill, VoiceMessage } from "./types";
 
 const g = globalThis as unknown as { __resq_voice?: Map<string, VoiceMessage[]> };
 /** requestId -> the turns so far, oldest first. */
@@ -257,6 +258,68 @@ export function gatherSpeech(opts: { action: string; lang: LanguageCode; prompt:
     say(opts.prompt, opts.lang) +
     `</Gather>`
   );
+}
+
+// ── Outbound alert calls ───────────────────────────────────────────────────────────────────────────────────────
+// The relay above is two people *in* a conversation. This is the ping that starts one (or that points a provider at
+// a job in the app): when a help request matches someone's skill, the SMS already lands (lib/sms.ts) and this rings
+// their phone and reads a short spoken alert aloud, so the alert is seen while the ringing is still stopped — the
+// whole point of the user-facing behaviour "they notice it soon and reply". One-way on purpose: the reply comes
+// back over the SMS thread (ACCEPT <code> / YES) or in the app, exactly as the texts promise.
+//
+// The `<Say>` text is deliberately plain English read through the voice of the reader's own language when we know
+// it; the actual negotiation happens in the relay, in their language, once someone picks up.
+
+/** Spoken distance, rounded the way a phone line deserves: "250 meters", "1.6 kilometers". */
+export function spokenDistance(km: number): string {
+  return km < 1 ? `${Math.max(50, Math.round((km * 1000) / 50) * 50)} meters` : `${Math.round(km * 10) / 10} kilometers`;
+}
+
+/** Wave ping: announced only for a genuine skill (or equipment) match, never for a bystander who just fills the wave. */
+export const alertPing = (i: { distanceKm: number; skill?: Skill | null }) =>
+  `Sahaya alert. ${i.skill ? `A ${SKILL_LABELS[i.skill].toLowerCase()} help request` : "A help request matching your skills"} just arrived ${spokenDistance(i.distanceKm)} away. Open the Sahaya app now and accept if you are available. Thank you.`;
+
+/** New community-services job broadcast to providers of that service. */
+export const alertService = (i: { service: Skill; distanceKm: number }) =>
+  `Sahaya. There is a new ${SKILL_LABELS[i.service].toLowerCase()} job ${spokenDistance(i.distanceKm)} away. Open the Sahaya app to see the details and accept if it is yours.`;
+
+/** AI-scoped job sent by code: the SMS thread is how they claim it, so the call points at the reply. */
+export const alertScoped = (i: { category: Skill; distanceKm: number }) =>
+  `Sahaya. A ${SKILL_LABELS[i.category].toLowerCase()} job ${spokenDistance(i.distanceKm)} away is waiting for you. Open the Sahaya app, or reply ACCEPT with your code to the message you just received, to claim it.`;
+
+export type AlertCallLog = { to: string; text: string; lang: LanguageCode; at: string; simulated: boolean; ok: boolean };
+const gac = globalThis as unknown as { __resq_alertcalls?: AlertCallLog[] };
+export function recentAlertCalls(): AlertCallLog[] { return [...(gac.__resq_alertcalls ?? [])]; }
+function recordAlert(e: AlertCallLog) { (gac.__resq_alertcalls ??= []).unshift(e); gac.__resq_alertcalls.length = Math.min(gac.__resq_alertcalls.length, 50); }
+
+/**
+ * Rings `to` and reads `text` aloud with `<Say>`, then hangs up. The TwiML travels inline, so no public URL is
+ * needed — the call works from localhost. TwiML equality with the relay is intentional: one voice map, one escape
+ * routine, so a wrong Google voice id (a silent call) cannot be introduced twice.
+ *
+ * Never throws, and without a Twilio number it logs the call it would have placed and records it, mirroring
+ * sendSms()'s simulated mode so the alert path is testable end to end with no phone and no credit.
+ */
+export async function deliverAlertCall(to: string, text: string, lang?: LanguageCode): Promise<{ ok: boolean; simulated: boolean; sid?: string; error?: string }> {
+  const language = lang ?? FALLBACK_LANGUAGE;
+  const at = new Date().toISOString();
+  if (!voiceConfigured()) {
+    console.log(`[voice:simulated] to=${to} lang=${language} say="${text}"`);
+    recordAlert({ to, text, lang: language, at, simulated: true, ok: true });
+    return { ok: true, simulated: true };
+  }
+  try {
+    const call = await (await getTwilio()).calls.create({
+      to, from: process.env.TWILIO_FROM!, twiml: voiceXml(say(text, language)),
+    });
+    recordAlert({ to, text, lang: language, at, simulated: false, ok: true });
+    return { ok: true, simulated: false, sid: call.sid };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    console.error(`[voice] alert call to ${to} failed: ${error}`);
+    recordAlert({ to, text, lang: language, at, simulated: false, ok: false });
+    return { ok: false, simulated: false, error };
+  }
 }
 
 export { MAX_SPEECH_SECONDS };

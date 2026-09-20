@@ -12,14 +12,14 @@
 import { JsonFilePersistence, type Changes, type Persistence } from "./persist";
 import type { AuditEntry, Authority, Dispatch, Helper, HelpRequest, LatLng, Otp, Payment, Rating, Reimbursement, UserLocation, Zone } from "../types";
 import type { AcceptResult, MarkPaidResult, Store } from "./index";
-import { seedHelpers, seedResidents } from "../../scripts/seed";
+import { demoHelpers, seedHelpers, seedResidents } from "../../scripts/seed";
 import { getSeedCenter } from "../dispatch";
 
 const c = structuredClone;
 const OPEN = new Set(["triaging", "searching", "matched", "escalated"]);
 
 export type MemoryStoreOptions = { seed?: boolean; center?: LatLng; now?: Date; persistPath?: string | null; persistence?: Persistence | null };
-const SEEDED = /^seed-helper-/;
+const SEEDED = /^seed-helper-/; // seedHelpers (01..30) and demoHelpers ("seed-helper-31") both match — re-seeded on boot
 
 export class MemoryStore implements Store {
   private helpers = new Map<string, Helper>();
@@ -43,7 +43,7 @@ export class MemoryStore implements Store {
   constructor(opts: MemoryStoreOptions = {}) {
     this.persistence = opts.persistence ?? (opts.persistPath ? new JsonFilePersistence(opts.persistPath) : null);
     if (opts.seed ?? process.env.SEED_ON_BOOT !== "0") {
-      for (const h of seedHelpers(opts.center ?? getSeedCenter(), opts.now ?? new Date())) this.helpers.set(h.id, h);
+      for (const h of [...seedHelpers(opts.center ?? getSeedCenter(), opts.now ?? new Date()), ...demoHelpers(opts.center ?? getSeedCenter(), opts.now ?? new Date())]) this.helpers.set(h.id, h);
       for (const r of seedResidents(opts.center ?? getSeedCenter(), opts.now ?? new Date())) this.locations.set(r.phone, r);
     }
     this.ready = this.load().then(() => {

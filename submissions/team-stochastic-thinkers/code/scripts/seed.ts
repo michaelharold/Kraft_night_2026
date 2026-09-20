@@ -122,6 +122,42 @@ export function seedHelpers(center: LatLng, now: Date): Helper[] {
   });
 }
 
+/**
+ * An optional extra demo provider, seeded only when RESQ_DEMO_PHONE is set (e.g. a real phone that should ring on
+ * the next skill-matched alert call). Empty unless configured, so the deterministic 30-helper seed — and every test
+ * that asserts `seedHelpers(...).length === 30` — is untouched. The id lives in the `seed-helper-` space so the
+ * memory store treats it as seed data exactly like the other 30 (persisted to MongoDB, excluded from the accounts
+ * file, re-seeded fresh on every boot). Stays near the centre so it lands in wave 1.
+ */
+export function demoHelpers(center: LatLng, now: Date): Helper[] {
+  const phone = process.env.RESQ_DEMO_PHONE?.trim();
+  if (!phone) return [];
+  const skills = ((process.env.RESQ_DEMO_SKILLS?.split(",") ?? ["plumber", "electrician"])
+    .map((s) => s.trim()).filter(Boolean)) as Skill[];
+  const lastSeen = now.toISOString();
+  const rates: Helper["rates"] = {};
+  for (const sk of skills) {
+    const r = RATES[sk];
+    if (r) rates[sk] = { min: r[0], max: r[1] };
+  }
+  return [{
+    id: "seed-helper-31",
+    name: process.env.RESQ_DEMO_NAME?.trim() || "Demo Helper",
+    phone,
+    skills,
+    language: "ml-IN",
+    rates,
+    toolsOnHand: [...new Set(skills.flatMap((s) => KITS[s] ?? []))] as Helper["toolsOnHand"],
+    location: { lat: +(center.lat + 0.2 / 111.32).toFixed(6), lng: +center.lng.toFixed(6) }, // ~200 m north
+    onDuty: true,
+    reliability: 1,
+    lastSeen,
+    trustTier: seedTier(skills),
+    credentialId: seedTier(skills) === "TIER_1_NEIGHBOR" ? null : "DEMO-00",
+    idProof: { fileId: null, fileName: "demo", mime: "", size: 0, uploadedAt: lastSeen, status: "verified" as const, reviewedBy: "seed", reviewedAt: lastSeen, note: null },
+  }];
+}
+
 const FIRST = ["Aarav", "Diya", "Kiran", "Lakshmi", "Manu", "Neha", "Omana", "Pranav", "Rani", "Sajan", "Tessa", "Unni",
   "Varsha", "Abdul", "Bindu", "Chandran", "Devika", "Eldho", "Gayathri", "Hari"];
 const LAST = ["Nair", "Pillai", "Kurian", "Menon", "Varghese", "Rahman", "Das", "Thomas", "Iyer", "Joseph"];
@@ -164,6 +200,11 @@ async function main(): Promise<void> {
       // The whole record is posted, so trustTier + credentialId reach a server that booted before the upgrade.
       const r = await fetch(`${base}/api/helpers`, { method: "POST", headers, body: JSON.stringify({ ...h, verified: h.idProof?.status === "verified" }) });
       if (r.ok) { ok++; const t = h.trustTier ?? "TIER_1_NEIGHBOR"; tiers[t] = (tiers[t] ?? 0) + 1; }
+      else console.error(`seed: ${h.id} → ${r.status} ${await r.text()}`);
+    }
+    for (const h of demoHelpers(center, new Date())) {
+      const r = await fetch(`${base}/api/helpers`, { method: "POST", headers, body: JSON.stringify({ ...h, verified: true }) });
+      if (r.ok) { ok++; tiers[h.trustTier ?? "TIER_1_NEIGHBOR"] = (tiers[h.trustTier ?? "TIER_1_NEIGHBOR"] ?? 0) + 1; }
       else console.error(`seed: ${h.id} → ${r.status} ${await r.text()}`);
     }
   } catch {
