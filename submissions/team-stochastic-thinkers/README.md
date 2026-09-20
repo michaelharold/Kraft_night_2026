@@ -4,9 +4,9 @@
 | Name | Email | GitHub |
 |------|-------|--------|
 | Michael Harold Sony |  | [@michaelharold](https://github.com/michaelharold) |
-|      |       |        |
-|      |       |        |
-|      |       |        |
+| Navyasree A J |  |  |
+| Shadha Mohamed Shareef |  |  |
+| Afna V P |  |  |
 
 ## Project Name
 **Sahaya** — Trusted Help, Right Around You
