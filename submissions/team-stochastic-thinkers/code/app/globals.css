@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/*
+ * Sahaya visual language.
+ *
+ * Warm bone canvas, one saturated accent, and a pastel per trade. The tints are the load-bearing idea: a plumber
+ * job is always sky, an electrician always butter, so someone scanning a busy feed finds their trade by colour
+ * before they read a word. That is wayfinding, not decoration, which is why there are exactly as many tints as
+ * there are bookable services and no spare ones lying around for ornament.
+ *
+ * Violet appears ONLY on the primary action of a screen. If two things on screen are violet, one of them is wrong.
+ */
+@theme {
+  /* Surfaces and ink */
+  --color-bone: #F4F1EB;          /* app canvas — warm, never pure white */
+  --color-surface: #FFFFFF;
+  --color-ink: #15141B;           /* headings, and the near-black pills */
+  --color-mist: #6E6A79;          /* secondary text */
+  --color-hairline: #E6E1D8;
+
+  /* The one accent */
+  --color-violet: #6D4DE6;
+  --color-violet-deep: #5638D4;
+  --color-violet-soft: #EDE9FD;
+
+  /* Status — kept muted so they never compete with the accent */
+  /* Measured against their own soft fills: the previous values scored 3.0-3.1:1 as 12px text, below the 4.5
+     WCAG AA needs. These clear it while still reading as green / amber / red. */
+  --color-positive: #1B7A45;
+  --color-positive-soft: #E3F5EA;
+  --color-warn: #8F5420;
+  --color-warn-soft: #FBEEE2;
+  --color-alert: #B8332D;
+  --color-alert-soft: #FCEBEA;
+
+  /* One tint per bookable trade (lib/theme.ts maps service -> name) */
+  --color-tint-sky: #CFE4F8;
+  --color-tint-butter: #F8F0C2;
+  --color-tint-peach: #FBDDC3;
+  --color-tint-mint: #D8EDC6;
+  --color-tint-lilac: #DFD7F7;
+  --color-tint-pink: #FAD1E6;
+  --color-tint-sage: #D7E9DE;
+  --color-tint-coral: #FBD4CC;
+
+  /* Legacy names still referenced across the app, remapped onto the new palette so every screen
+     picks up the language at once rather than half the product looking like the old one. */
+  --color-resq-red: #6D4DE6;
+  --color-resq-red-light: #EDE9FD;
+  --color-resq-red-dark: #5638D4;
+  --color-resq-navy: #15141B;
+  --color-resq-navy-dark: #000000;
+  --color-resq-green: #1B7A45;
+  --color-resq-green-light: #E3F5EA;
+  --color-resq-cyan: #6D4DE6;
+  --color-resq-cyan-light: #EDE9FD;
+  --color-resq-amber: #8F5420;
+  --color-resq-slate: #6E6A79;
+
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-display: var(--font-jakarta), system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
+
+  --radius-card: 1.75rem;         /* 28px — the reference's card corner */
+  --radius-tile: 1.25rem;
+}
+
+html, body {
+  background: #F4F1EB;
+  color: #15141B;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+@keyframes dispatch-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: .8; } }
+@keyframes slide-in-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin-slow { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes typing-dot { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+@keyframes marker-pulse { 0% { r: 6; opacity: .7; } 100% { r: 18; opacity: 0; } }
+
+.animate-dispatch-pulse { animation: dispatch-pulse 2s ease-in-out infinite; }
+.animate-slide-up { animation: slide-in-up .4s ease-out both; }
+.animate-fade-in { animation: fade-in .3s ease-out both; }
+.animate-spin-slow { animation: spin-slow 8s linear infinite; }
+.typing-dot-1 { animation: typing-dot 1.2s ease-in-out infinite; }
+.typing-dot-2 { animation: typing-dot 1.2s ease-in-out .2s infinite; }
+.typing-dot-3 { animation: typing-dot 1.2s ease-in-out .4s infinite; }
+.marker-pulse { animation: marker-pulse 1.6s ease-out infinite; }
+
+/*
+ * Shadows are warm and diffuse, lit from above, and deliberately soft: on a bone canvas a cool grey shadow
+ * (rgba(0,0,0,.1)) reads as dirt. Two levels only — a card sits, or a card floats. Anything needing a third
+ * level is really asking for a different layout.
+ */
+.card-shadow { box-shadow: 0 1px 2px rgba(60,48,30,.05), 0 6px 20px rgba(60,48,30,.06); }
+.card-shadow-lg { box-shadow: 0 2px 6px rgba(60,48,30,.07), 0 18px 44px rgba(60,48,30,.10); }
+
+/* The header is a bone wash, not a slab of navy: the canvas continues under the content rather than fighting it. */
+.bg-navy-gradient { background: linear-gradient(170deg, #FBF9F5 0%, #F1EDE4 100%); color: #15141B; }
+.bg-emergency-gradient { background: linear-gradient(135deg, #6D4DE6 0%, #5638D4 100%); }
+.bg-success-gradient { background: linear-gradient(135deg, #2E9E5B 0%, #257F49 100%); }
+.bg-ai-gradient { background: linear-gradient(135deg, #6D4DE6 0%, #8B6BF0 100%); }
+
+/* The reference's floating dock. Sits above the safe area on a phone; becomes a normal bar from lg. */
+.dock { box-shadow: 0 6px 28px rgba(60,48,30,.16); }
+
+/* The circular chevron that ends every list row in the reference. */
+.chev { display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem;
+        border-radius: 9999px; background: rgba(255,255,255,.7); color: #15141B; flex: none; }
+
+/* Headline treatment: the reference sets the second line in italic. One device, used once per screen. */
+.display-italic { font-style: italic; letter-spacing: -.02em; }
+.timeline-line { position: absolute; left: 11px; width: 2px; background: linear-gradient(to bottom, #6D4DE6, #2E9E5B); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

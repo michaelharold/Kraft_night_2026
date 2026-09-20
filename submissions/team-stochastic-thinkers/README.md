@@ -60,8 +60,11 @@ See the `photos/` folder in this directory.
 | `05-desktop-layout.png` | The same app on a laptop — responsive from 360 px up |
 
 ## How to Run (optional)
+The full source is in the `code/` folder beside this README, and also lives at
+[github.com/michaelharold/Sahaya](https://github.com/michaelharold/Sahaya).
+
 ```bash
-git clone https://github.com/michaelharold/Sahaya.git && cd Sahaya
+cd code            # or: git clone https://github.com/michaelharold/Sahaya.git && cd Sahaya
 npm install
 mongod --dbpath ~/.local/mongodb-data --bind_ip 127.0.0.1        # MongoDB 7+
 ollama serve & ollama pull qwen2.5:3b                            # local AI for job scoping
