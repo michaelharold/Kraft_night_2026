@@ -61,7 +61,7 @@ See the `photos/` folder in this directory.
 
 ## How to Run (optional)
 ```bash
-git clone https://github.com/michaelharold/resq.git sahaya && cd sahaya
+git clone https://github.com/michaelharold/Sahaya.git && cd Sahaya
 npm install
 mongod --dbpath ~/.local/mongodb-data --bind_ip 127.0.0.1        # MongoDB 7+
 ollama serve & ollama pull qwen2.5:3b                            # local AI for job scoping
